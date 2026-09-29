@@ -1,0 +1,647 @@
+﻿<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô phỏng Đèn pin Faraday (Forever Flashlight)</title>
+    <!-- Favicon Icon Đèn Pin trên thẻ trình duyệt -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%2306b6d4' d='M338.2 16.5C333.6 6.3 323.4 0 312.2 0H199.8c-11.2 0-21.4 6.3-26 16.5L148.5 72H64c-17.7 0-32 14.3-32 32v16c0 17.7 14.3 32 32 32h16.2l34.4 309.2c3 27 25.8 47.8 53 47.8h176.8c27.2 0 50-20.8 53-47.8L431.8 152H448c17.7 0 32-14.3 32-32V104c0-17.7-14.3-32-32-32h-84.5l-25.3-55.5zM256 224a32 32 0 1 1 0 64 32 32 0 1 1 0-64z'/></svg>">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0b0f19',
+                        panelBg: '#111827',
+                        accentBlue: '#3b82f6',
+                        accentCyan: '#06b6d4',
+                        accentYellow: '#eab308'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Inter & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0b0f19; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+    </style>
+</head>
+<body class="bg-darkBg text-slate-100 min-h-screen flex flex-col justify-between selection:bg-cyan-500 selection:text-white">
+
+    <!-- Header -->
+    <header class="border-b border-slate-800 bg-panelBg/80 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
+                <i class="fa-solid fa-bolt text-white text-lg animate-pulse"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Forever Flashlight</h1>
+                <p class="text-xs text-slate-400">Mô phỏng Định luật Cảm ứng Điện từ Faraday</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button id="btnGuide" class="px-4 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-2">
+                <i class="fa-solid fa-circle-question text-cyan-400"></i> Hướng dẫn
+            </button>
+            <button id="btnSound" class="px-3 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-2" title="Bật/Tắt âm thanh">
+                <i id="soundIcon" class="fa-solid fa-volume-high text-cyan-400"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        
+        <!-- Cột 1 & 2: Mô phỏng Đèn pin & Điều khiển -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- Khu vực Mô phỏng Trực quan Đèn Pin -->
+            <div class="bg-panelBg border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden flex flex-col items-center">
+                <div class="absolute top-4 left-4 flex items-center gap-2">
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                    <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Mô phỏng Thời gian thực</span>
+                </div>
+
+                <!-- Đèn pin container -->
+                <div class="my-8 w-full max-w-xl relative flex items-center justify-center py-10">
+                    
+                    <!-- Vỏ đèn pin (Trong suốt) -->
+                    <div id="flashlightBody" class="w-full h-44 rounded-3xl bg-slate-900/60 border-2 border-cyan-500/40 relative backdrop-blur-md shadow-[0_0_30px_rgba(6,182,212,0.15)] flex items-center px-6 overflow-hidden cursor-grab active:cursor-grabbing">
+                        
+                        <!-- Các đường sức từ (Magnetic field lines background animation) -->
+                        <div class="absolute inset-0 opacity-20 pointer-events-none overflow-hidden flex items-center justify-around">
+                            <div class="w-full h-0.5 border-t border-dashed border-cyan-400 animate-pulse"></div>
+                        </div>
+
+                        <!-- Cuộn dây đồng (Copper Coil) giữa thân đèn -->
+                        <div class="absolute left-1/3 right-1/3 top-2 bottom-2 rounded-xl border-2 border-amber-500/60 bg-amber-500/10 flex items-center justify-center overflow-hidden z-10 shadow-[inset_0_0_15px_rgba(245,158,11,0.3)]">
+                            <!-- Hiệu ứng quấn dây đồng -->
+                            <div class="w-full h-full opacity-70 flex flex-col justify-around py-1 pointer-events-none">
+                                <div class="w-full h-1 bg-amber-400/80 shadow-[0_0_5px_#f59e0b]"></div>
+                                <div class="w-full h-1 bg-amber-400/80 shadow-[0_0_5px_#f59e0b]"></div>
+                                <div class="w-full h-1 bg-amber-400/80 shadow-[0_0_5px_#f59e0b]"></div>
+                                <div class="w-full h-1 bg-amber-400/80 shadow-[0_0_5px_#f59e0b]"></div>
+                                <div class="w-full h-1 bg-amber-400/80 shadow-[0_0_5px_#f59e0b]"></div>
+                                <div class="w-full h-1 bg-amber-400/80 shadow-[0_0_5px_#f59e0b]"></div>
+                            </div>
+                            <span class="absolute text-[10px] font-bold text-amber-300 uppercase tracking-widest bg-slate-900/80 px-2 py-0.5 rounded border border-amber-500/40 z-20">Cuộn dây đồng (Coil)</span>
+                        </div>
+
+                        <!-- Nam châm vĩnh cửu có thể trượt -->
+                        <div id="magnet" class="w-24 h-32 rounded-xl bg-gradient-to-r from-red-600 via-slate-200 to-blue-600 border border-slate-700 absolute left-10 flex flex-col items-center justify-between p-2 shadow-2xl transition-transform duration-75 select-none z-30">
+                            <div class="w-full bg-red-700 text-white text-[10px] font-bold text-center rounded py-0.5 shadow">N (Bắc)</div>
+                            <div class="text-[10px] font-bold text-slate-900 bg-slate-100/90 px-2 rounded">NAM CHÂM</div>
+                            <div class="w-full bg-blue-700 text-white text-[10px] font-bold text-center rounded py-0.5 shadow">S (Nam)</div>
+                        </div>
+
+                        <!-- Mạch điện tử tích hợp ở đuôi -->
+                        <div class="absolute right-4 top-4 bottom-4 w-28 rounded-xl bg-slate-950/80 border border-slate-800 p-2 flex flex-col justify-between text-[10px] text-slate-400 z-10">
+                            <div class="font-semibold text-cyan-400 border-b border-slate-800 pb-1">Mạch chỉnh lưu</div>
+                            <div class="space-y-1">
+                                <div class="flex justify-between"><span>AC:</span> <span id="acVal" class="text-amber-400 font-mono">0.0V</span></div>
+                                <div class="flex justify-between"><span>DC:</span> <span id="dcVal" class="text-cyan-400 font-mono">0.0V</span></div>
+                            </div>
+                            <div class="text-[9px] text-slate-500 text-center">Bridge Rectifier</div>
+                        </div>
+
+                        <!-- Đầu đèn LED phát sáng -->
+                        <div class="absolute -right-4 top-1/2 -translate-y-1/2 w-8 h-24 rounded-r-2xl bg-gradient-to-r from-slate-800 to-slate-900 border-l-2 border-cyan-500/50 flex items-center justify-center z-20">
+                            <div id="ledBulb" class="w-6 h-16 rounded-full bg-amber-500/20 shadow-[0_0_5px_rgba(234,179,8,0.2)] transition-all duration-100 flex items-center justify-center">
+                                <div class="w-2 h-6 rounded-full bg-amber-200/40" id="ledCore"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hướng dẫn tương tác nhanh -->
+                <div class="text-center mb-6">
+                    <p class="text-xs text-slate-400">💡 Kéo thả nam châm qua lại trong thân đèn hoặc sử dụng nút <span class="text-cyan-400 font-semibold">Lắc Tự Động</span> bên dưới để tạo điện năng. Nhấn <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-cyan-300 font-mono text-[10px]">F5</kbd> để làm mới.</p>
+                </div>
+
+                <!-- Bảng điều khiển nút bấm -->
+                <div class="flex flex-wrap items-center justify-center gap-4 w-full">
+                    <button id="btnShake" class="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold text-sm shadow-lg shadow-cyan-500/30 transition transform active:scale-95 flex items-center gap-2">
+                        <i class="fa-solid fa-hand-back-fist animate-bounce"></i> Lắc Đèn Pin (Shake)
+                    </button>
+                    <button id="btnAutoShake" class="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-sm transition transform active:scale-95 flex items-center gap-2">
+                        <i id="autoIcon" class="fa-solid fa-play text-cyan-400"></i> Lắc Tự Động (Auto)
+                    </button>
+                    <button id="btnReset" class="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 text-sm transition" title="Đặt lại trạng thái">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- Thanh trạng thái Năng lượng Tụ điện & LED -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Tụ điện (Capacitor) -->
+                <div class="bg-panelBg border border-slate-800 rounded-2xl p-5 shadow-lg flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-battery-half text-cyan-400"></i>
+                            <h3 class="font-semibold text-sm text-slate-200">Mức Năng Lượng Tụ (Capacitor)</h3>
+                        </div>
+                        <span id="capPercent" class="text-xs font-mono font-bold text-cyan-400 bg-cyan-950/60 px-2 py-1 rounded border border-cyan-800/50">0%</span>
+                    </div>
+                    <!-- Thanh tiến trình tụ -->
+                    <div class="w-full bg-slate-900 rounded-full h-4 p-0.5 border border-slate-800 mb-3 overflow-hidden">
+                        <div id="capBar" class="bg-gradient-to-r from-cyan-500 to-blue-500 h-full rounded-full transition-all duration-200 shadow-[0_0_10px_rgba(6,182,212,0.5)]" style="width: 0%;"></div>
+                    </div>
+                    <div class="flex justify-between text-xs text-slate-400">
+                        <span>0F (Trống)</span>
+                        <span>Dung lượng: 1.0F / 5.5V</span>
+                    </div>
+                </div>
+
+                <!-- Trạng thái LED -->
+                <div class="bg-panelBg border border-slate-800 rounded-2xl p-5 shadow-lg flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-regular fa-lightbulb text-amber-400"></i>
+                            <h3 class="font-semibold text-sm text-slate-200">Độ Sáng Bóng Đèn LED</h3>
+                        </div>
+                        <span id="brightnessPercent" class="text-xs font-mono font-bold text-amber-400 bg-amber-950/60 px-2 py-1 rounded border border-amber-800/50">0%</span>
+                    </div>
+                    <!-- Thanh độ sáng -->
+                    <div class="w-full bg-slate-900 rounded-full h-4 p-0.5 border border-slate-800 mb-3 overflow-hidden">
+                        <div id="brightnessBar" class="bg-gradient-to-r from-amber-500 to-yellow-300 h-full rounded-full transition-all duration-100 shadow-[0_0_15px_rgba(234,179,8,0.6)]" style="width: 0%;"></div>
+                    </div>
+                    <div class="flex justify-between text-xs text-slate-400">
+                        <span>Tắt</span>
+                        <span>Siêu sáng (High Power)</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Cột 3: Bảng Thông tin Vật lý -->
+        <div class="space-y-6">
+            
+            <!-- Thống kê Tương tác -->
+            <div class="bg-panelBg border border-slate-800 rounded-2xl p-5 shadow-lg">
+                <h3 class="font-semibold text-sm text-slate-200 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-line text-cyan-400"></i> Thông số Hoạt động
+                </h3>
+                <div class="space-y-3 text-xs">
+                    <div class="flex justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                        <span class="text-slate-400">Tốc độ lắc:</span>
+                        <span id="speedVal" class="font-mono font-semibold text-cyan-400">0.0 m/s</span>
+                    </div>
+                    <div class="flex justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                        <span class="text-slate-400">Số lần qua cuộn dây:</span>
+                        <span id="passCount" class="font-mono font-semibold text-amber-400">0 lần</span>
+                    </div>
+                    <div class="flex justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                        <span class="text-slate-400">Điện áp sinh ra (AC):</span>
+                        <span id="voltVal" class="font-mono font-semibold text-emerald-400">0.00 V</span>
+                    </div>
+                    <div class="flex justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                        <span class="text-slate-400">Thời gian sáng ước tính:</span>
+                        <span id="timeVal" class="font-mono font-semibold text-purple-400">0 giây</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Modal Hướng dẫn -->
+    <div id="guideModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-panelBg border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-circle-question text-cyan-400"></i> Hướng dẫn Sử dụng Mô phỏng
+                </h3>
+                <button id="btnCloseGuide" class="text-slate-400 hover:text-slate-200 text-sm">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="text-xs text-slate-300 space-y-3 leading-relaxed">
+                <div class="flex items-start gap-3">
+                    <div class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 font-bold">1</div>
+                    <p><strong>Lắc thủ công:</strong> Dùng chuột kéo thỏi nam châm trượt qua lại bên trong thân đèn pin nhựa.</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 font-bold">2</div>
+                    <p><strong>Nút Lắc Tự Động:</strong> Nhấn nút "Lắc Tự Động" để máy tự động mô phỏng động tác lắc liên tục với tốc độ đều.</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 font-bold">3</div>
+                    <p><strong>Theo dõi năng lượng:</strong> Quan sát mức điện áp AC sinh ra, mức nạp của tụ điện (Capacitor) và độ sáng của bóng đèn LED.</p>
+                </div>
+            </div>
+            <div class="mt-6 text-right">
+                <button id="btnGotIt" class="px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-white font-semibold text-xs transition">Đã hiểu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 bg-panelBg/50 py-4 text-center text-xs text-slate-500">
+        <p>Mô phỏng Giáo dục Vật lý • Forever Flashlight (Faraday Flashlight Simulation)</p>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Các biến trạng thái mô phỏng
+        let isDragging = false;
+        let startX = 0;
+        let magnetX = 20; // Vị trí hiện tại của nam châm (%)
+        let velocity = 0;
+        let lastX = 20;
+        let lastTime = Date.now();
+        
+        let capacitorEnergy = 0; // 0 đến 100%
+        let passCounter = 0;
+        let lastPassSide = null; // 'left' hoặc 'right'
+        let isAutoShaking = false;
+        let autoShakeTimer = null;
+        let soundEnabled = localStorage.getItem('flashlight_sound') !== 'false';
+
+        // Hệ thống âm thanh Web Audio API tối ưu âm lượng và chống bị trình duyệt chặn (Autoplay Policy Unlocking)
+        let audioCtx = null;
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtxClass) {
+                    audioCtx = new AudioCtxClass();
+                }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // Tự động kích hoạt AudioContext khi người dùng tương tác bất kỳ trên trang
+        const unlockAudioEvents = ['pointerdown', 'mousedown', 'touchstart', 'keydown'];
+        function unlockAudio() {
+            initAudioContext();
+            unlockAudioEvents.forEach(evt => window.removeEventListener(evt, unlockAudio));
+        }
+        unlockAudioEvents.forEach(evt => window.addEventListener(evt, unlockAudio, { once: true }));
+
+        // Phát âm thanh va chạm nam châm (Âm thanh metallic/thump rõ ràng và to)
+        function playClickSound(intensity = 0.5) {
+            if (!soundEnabled) return;
+            initAudioContext();
+            if (!audioCtx || audioCtx.state !== 'running') return;
+
+            try {
+                const now = audioCtx.currentTime;
+                
+                // Dao động chính (thump)
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                // Dao động kim loại phụ (metallic clink)
+                const oscHigh = audioCtx.createOscillator();
+                const gainHigh = audioCtx.createGain();
+
+                const scaledVolume = Math.min(1.0, Math.max(0.2, intensity * 1.5));
+
+                // Cấu hình âm trầm
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.exponentialRampToValueAtTime(30, now + 0.08);
+
+                gain.gain.setValueAtTime(scaledVolume * 0.8, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                // Cấu hình âm cao kim loại
+                oscHigh.type = 'triangle';
+                oscHigh.frequency.setValueAtTime(1200 + Math.random() * 200, now);
+                oscHigh.frequency.exponentialRampToValueAtTime(300, now + 0.04);
+
+                gainHigh.gain.setValueAtTime(scaledVolume * 0.4, now);
+                gainHigh.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+
+                oscHigh.connect(gainHigh);
+                gainHigh.connect(audioCtx.destination);
+
+                osc.start(now);
+                oscHigh.start(now);
+                osc.stop(now + 0.08);
+                oscHigh.stop(now + 0.04);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // DOM Elements
+        const flashlightBody = document.getElementById('flashlightBody');
+        const magnet = document.getElementById('magnet');
+        const capBar = document.getElementById('capBar');
+        const capPercent = document.getElementById('capPercent');
+        const brightnessBar = document.getElementById('brightnessBar');
+        const brightnessPercent = document.getElementById('brightnessPercent');
+        const speedVal = document.getElementById('speedVal');
+        const passCount = document.getElementById('passCount');
+        const voltVal = document.getElementById('voltVal');
+        const acVal = document.getElementById('acVal');
+        const dcVal = document.getElementById('dcVal');
+        const timeVal = document.getElementById('timeVal');
+        const ledBulb = document.getElementById('ledBulb');
+        const ledCore = document.getElementById('ledCore');
+
+        // Lấy kích thước thân đèn
+        function getBodyBounds() {
+            return flashlightBody.getBoundingClientRect();
+        }
+
+        // Xử lý kéo thả chuột / cảm ứng nam châm
+        magnet.addEventListener('mousedown', (e) => {
+            initAudioContext();
+            if (isAutoShaking) return;
+            isDragging = true;
+            startX = e.clientX;
+            lastX = magnetX;
+            lastTime = Date.now();
+            e.stopPropagation();
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging || isAutoShaking) return;
+            const bounds = getBodyBounds();
+            const dx = e.clientX - startX;
+            const bodyWidth = bounds.width - magnet.offsetWidth;
+            
+            let newX = lastX + (dx / bodyWidth) * 100;
+            newX = Math.max(2, Math.min(newX, 75)); // Giới hạn trong thân đèn
+
+            // Tính vận tốc giả lập dựa trên delta X và thời gian
+            const now = Date.now();
+            const dt = (now - lastTime) / 1000;
+            if (dt > 0) {
+                velocity = Math.abs((newX - magnetX) / dt) * 0.1;
+            }
+            lastTime = now;
+            magnetX = newX;
+            
+            updatePhysicsAndPosition();
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        // Hỗ trợ cảm ứng (Touch events) cho mobile
+        magnet.addEventListener('touchstart', (e) => {
+            initAudioContext();
+            if (isAutoShaking) return;
+            isDragging = true;
+            startX = e.touches[0].clientX;
+            lastX = magnetX;
+            lastTime = Date.now();
+            e.stopPropagation();
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (!isDragging || isAutoShaking) return;
+            const bounds = getBodyBounds();
+            const dx = e.touches[0].clientX - startX;
+            const bodyWidth = bounds.width - magnet.offsetWidth;
+            
+            let newX = lastX + (dx / bodyWidth) * 100;
+            newX = Math.max(2, Math.min(newX, 75));
+            
+            const now = Date.now();
+            const dt = (now - lastTime) / 1000;
+            if (dt > 0) {
+                velocity = Math.abs((newX - magnetX) / dt) * 0.1;
+            }
+            lastTime = now;
+            magnetX = newX;
+            
+            updatePhysicsAndPosition();
+        });
+
+        window.addEventListener('touchend', () => {
+            isDragging = false;
+        });
+
+        // Cập nhật vị trí nam châm và tính toán cảm ứng điện từ khi di chuyển qua cuộn dây (vùng 33% đến 66%)
+        function updatePhysicsAndPosition() {
+            magnet.style.left = `${magnetX}%`;
+
+            // Kiểm tra nam châm có đi qua vùng cuộn dây (32% - 50%) không để đếm số lần qua lại
+            const centerPos = magnetX + 10; // tâm nam châm
+            let currentSide = centerPos < 42 ? 'left' : (centerPos > 52 ? 'right' : 'center');
+            
+            if (currentSide !== 'center' && currentSide !== lastPassSide && lastPassSide !== null) {
+                passCounter++;
+                playClickSound(Math.min(0.8, 0.2 + velocity * 0.15));
+            }
+            if (currentSide !== 'center') {
+                lastPassSide = currentSide;
+            }
+
+            // Tính điện áp AC sinh ra dựa trên vận tốc chuyển động
+            let generatedVoltageAC = velocity * 4.5;
+            if (!isDragging && !isAutoShaking) {
+                velocity *= 0.85; // Giảm tốc độ khi thả ra
+                generatedVoltageAC = velocity * 4.5;
+            }
+
+            // Nạp năng lượng vào tụ điện khi có điện áp AC
+            if (generatedVoltageAC > 0.1) {
+                capacitorEnergy = Math.min(100, capacitorEnergy + generatedVoltageAC * 1.5);
+            }
+
+            // Cập nhật giao diện thông số
+            speedVal.innerText = `${(velocity * 2).toFixed(1)} m/s`;
+            passCount.innerText = `${passCounter} lần`;
+            voltVal.innerText = `${generatedVoltageAC.toFixed(2)} V`;
+            acVal.innerText = `${generatedVoltageAC.toFixed(1)}V`;
+            
+            let dcVoltage = (capacitorEnergy / 100) * 5.0;
+            dcVal.innerText = `${dcVoltage.toFixed(1)}V`;
+
+            // Thời gian sáng ước tính dựa trên năng lượng tụ
+            let estSeconds = Math.round((capacitorEnergy / 100) * 120);
+            timeVal.innerText = `${estSeconds} giây`;
+        }
+
+        // Vòng lặp chính cập nhật trạng thái xả điện của tụ và độ sáng LED
+        function mainLoop() {
+            if (!isDragging && !isAutoShaking) {
+                // Tự động giảm tốc độ nếu không kéo
+                if (velocity > 0.01) {
+                    velocity *= 0.9;
+                    updatePhysicsAndPosition();
+                }
+            }
+
+            // Tụ điện tự xả dần theo thời gian khi LED sáng
+            if (capacitorEnergy > 0) {
+                // Tốc độ xả phụ thuộc vào độ sáng của LED
+                let drainRate = 0.05 + (capacitorEnergy / 100) * 0.08;
+                capacitorEnergy = Math.max(0, capacitorEnergy - drainRate);
+            }
+
+            // Độ sáng LED tương ứng với mức năng lượng tụ
+            let brightness = capacitorEnergy;
+            
+            // Cập nhật thanh hiển thị
+            capBar.style.width = `${capacitorEnergy}%`;
+            capPercent.innerText = `${Math.round(capacitorEnergy)}%`;
+
+            brightnessBar.style.width = `${brightness}%`;
+            brightnessPercent.innerText = `${Math.round(brightness)}%`;
+
+            // Hiệu ứng phát sáng bóng đèn LED thực tế
+            if (brightness > 2) {
+                let glowAlpha = brightness / 100;
+                ledBulb.style.backgroundColor = `rgba(234, 179, 8, ${0.2 + glowAlpha * 0.8})`;
+                ledBulb.style.boxShadow = `0 0 ${10 + glowAlpha * 35}px rgba(234, 179, 8, ${0.4 + glowAlpha * 0.6})`;
+                ledCore.style.backgroundColor = `rgba(254, 240, 138, ${0.4 + glowAlpha * 0.6})`;
+            } else {
+                ledBulb.style.backgroundColor = `rgba(234, 179, 8, 0.1)`;
+                ledBulb.style.boxShadow = `0 0 5px rgba(234, 179, 8, 0.1)`;
+                ledCore.style.backgroundColor = `rgba(254, 240, 138, 0.2)`;
+            }
+
+            requestAnimationFrame(mainLoop);
+        }
+
+        // Nút Lắc Đèn Pin thủ công 1 lần mạnh
+        document.getElementById('btnShake').addEventListener('click', () => {
+            initAudioContext();
+            velocity = 3.5;
+            // Thực hiện hiệu ứng trượt tự động qua lại 1 nhịp
+            let startPos = magnetX;
+            let targetPos = startPos > 40 ? 10 : 65;
+            let progress = 0;
+            
+            function animateShake() {
+                progress += 0.15;
+                magnetX = startPos + (targetPos - startPos) * Math.sin(progress * Math.PI);
+                updatePhysicsAndPosition();
+                if (progress < 1) {
+                    requestAnimationFrame(animateShake);
+                } else {
+                    playClickSound(0.6);
+                }
+            }
+            animateShake();
+        });
+
+        // Nút Lắc Tự Động liên tục
+        const btnAutoShake = document.getElementById('btnAutoShake');
+        const autoIcon = document.getElementById('autoIcon');
+        
+        btnAutoShake.addEventListener('click', () => {
+            initAudioContext();
+            isAutoShaking = !isAutoShaking;
+            if (isAutoShaking) {
+                btnAutoShake.classList.add('bg-cyan-600', 'text-white');
+                btnAutoShake.classList.remove('bg-slate-800', 'text-slate-200');
+                autoIcon.classList.replace('fa-play', 'fa-pause');
+                
+                let startTime = Date.now();
+                function autoLoop() {
+                    if (!isAutoShaking) return;
+                    let elapsed = (Date.now() - startTime) / 300;
+                    // Chuyển động dao động điều hòa
+                    magnetX = 38 + 32 * Math.sin(elapsed * 5);
+                    velocity = 2.2;
+                    updatePhysicsAndPosition();
+                    
+                    if (Math.sin(elapsed * 5) > 0.95 || Math.sin(elapsed * 5) < -0.95) {
+                        playClickSound(0.5);
+                    }
+                    
+                    autoShakeTimer = requestAnimationFrame(autoLoop);
+                }
+                autoLoop();
+            } else {
+                btnAutoShake.classList.remove('bg-cyan-600', 'text-white');
+                btnAutoShake.classList.add('bg-slate-800', 'text-slate-200');
+                autoIcon.classList.replace('fa-pause', 'fa-play');
+                cancelAnimationFrame(autoShakeTimer);
+                velocity = 0;
+            }
+        });
+
+        // Nút Đặt lại (Reset)
+        document.getElementById('btnReset').addEventListener('click', () => {
+            initAudioContext();
+            isAutoShaking = false;
+            if (autoShakeTimer) cancelAnimationFrame(autoShakeTimer);
+            btnAutoShake.classList.remove('bg-cyan-600', 'text-white');
+            btnAutoShake.classList.add('bg-slate-800', 'text-slate-200');
+            autoIcon.classList.replace('fa-pause', 'fa-play');
+            
+            magnetX = 20;
+            velocity = 0;
+            capacitorEnergy = 0;
+            passCounter = 0;
+            updatePhysicsAndPosition();
+        });
+
+        // Modal Hướng dẫn
+        const guideModal = document.getElementById('guideModal');
+        document.getElementById('btnGuide').addEventListener('click', () => {
+            guideModal.classList.remove('hidden');
+        });
+        document.getElementById('btnCloseGuide').addEventListener('click', () => {
+            guideModal.classList.add('hidden');
+        });
+        document.getElementById('btnGotIt').addEventListener('click', () => {
+            guideModal.classList.add('hidden');
+        });
+
+        // Bật/Tắt Âm thanh và cập nhật giao diện
+        const btnSound = document.getElementById('btnSound');
+        const soundIcon = document.getElementById('soundIcon');
+        
+        function updateSoundUI() {
+            if (soundEnabled) {
+                soundIcon.classList.replace('fa-volume-xmark', 'fa-volume-high');
+                soundIcon.classList.add('text-cyan-400');
+            } else {
+                soundIcon.classList.replace('fa-volume-high', 'fa-volume-xmark');
+                soundIcon.classList.remove('text-cyan-400');
+            }
+        }
+
+        btnSound.addEventListener('click', () => {
+            initAudioContext();
+            soundEnabled = !soundEnabled;
+            localStorage.setItem('flashlight_sound', soundEnabled);
+            updateSoundUI();
+        });
+
+        // Hỗ trợ phím tắt F5 reload trang chủ động
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'F5') {
+                e.preventDefault();
+                window.location.reload();
+            }
+        });
+
+        // Khởi chạy vòng lặp
+        window.onload = function() {
+            updateSoundUI();
+            updatePhysicsAndPosition();
+            mainLoop();
+        };
+    </script>
+</body>
+</html>
